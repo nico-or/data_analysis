@@ -42,11 +42,6 @@ Every record in the dataset has the following fields:
 | Total duration       | STRING     | Attribute | Human-readable representation of Total duration (ms) |
 | Total duration (ms)  | UINT       | Attribute | Bike trip lenght in miliseconds                      |
 
-Some observations:
-
-- The Station Number fields is encoded as a 6-character long 0 padded integer (123 becomes '00123'), so we will use a fixed length VARCHAR to store it instead of an UINT.
-- The Bike model could be stored as an ENUM, but we will use a STRING to keep things simple.
-
 ### Download
 
 Opening the [TfL cycling repositorty](https://cycling.data.tfl.gov.uk/) and executing the following script on the browser console will return an array with the desired 24 elements. After that, one could use many methods to actually download the CSV files.
@@ -63,3 +58,102 @@ ls data/*.csv | parallel -j 6 gzip -k {}
 ```
 
 This reduces the dataset size from 1.4Gb to 300Mb.
+
+## Data Preparation
+
+Before analysis we must join all files into a convenient format that allows us freedom to query and transform the data. The tool of choice was DuckDB.
+
+DuckDB allows us to:
+
+- fast iteration while working on the CLI
+- load csv data from zipped csv files
+- export the data to multiple file formats such as duckdb, sqlite, csv and more.
+- execute SQL queries stored in plaintext files against said database
+
+### Attribute renaming
+
+New values for the trip attributes is assigned at load time to simplify SQL query writting.
+
+| Original Field Name  | New Field Name     | DuckDB type |
+| -------------------- | ------------------ | ----------- |
+| Number               | trip_id            | BIGINT      |
+| Start date           | date_start         | TIMESTAMP   |
+| Start station number | station_start_id   | BIGINT      |
+| Start station        | station_start_name | VARCHAR     |
+| End date             | date_end           | TIMESTAMP   |
+| End station number   | station_end_id     | BIGINT      |
+| End station          | station_end_name   | VARCHAR     |
+| Bike number          | bike_id            | BIGINT      |
+| Bike model           | bike_model         | VARCHAR     |
+| Total duration       | duration_text      | VARCHAR     |
+| Total duration (ms)  | duration_ms        | BIGINT      |
+
+The SQL command to create the table
+
+```sql
+-- Create target table
+CREATE TABLE trips_raw (
+    trip_id BIGINT,
+    date_start TIMESTAMP,
+    date_end TIMESTAMP,
+    station_start_id BIGINT,
+    station_end_id BIGINT,
+    station_start_name VARCHAR,
+    station_end_name VARCHAR,
+    bike_id BIGINT,
+    bike_model VARCHAR,
+    duration_text VARCHAR,
+    duration_ms BIGINT,
+);
+```
+
+### CSV formatting
+
+There are 2 types of formatting between the 24 files, the 4 files from August and September beign the only odd ones.
+
+The main format:
+
+- quotes on every field
+- 0-padded strings as IDs for Trips, Stations and Bikes
+- Timestamp format is `YYYY-MM-DD HH:MM`
+
+The secondary format:
+
+- quotes only on station name fields
+- non-0-padded integers as IDs for Trips, Staations and Bikes
+- Timestamp format is `DD/MM/YYYY HH:MM`
+
+A small sample file was created for each format, whitespace was added to improve readability:
+
+- [format 0 sample](data/sample_format_0.csv)
+- [format 1 sample](data/sample_format_1.csv)
+
+### Data Load
+
+After accounting for the attributes data types, name aliases and timestamp formatting differences, we arrive at 2 SQL statements to load the data.
+
+A reduced version of the final query to load the secondary format files:
+
+```sql
+-- Load format_1 files
+INSERT INTO trips_raw
+    SELECT
+        "Number" AS trip_id,
+        ...
+        "Total duration (ms)" AS duration_ms,
+    FROM read_csv(
+        'data/format_1/*.csv.gz',
+        types={
+            'Start date': TIMESTAMP,
+            ...
+            'Bike number': BIGINT,
+        },
+        timestampformat='%d/%m/%Y %H:%M'
+    );
+```
+
+The [complete query](sql/01_load.sql) can be found on the [sql directory](sql), and can be run using:
+
+```bash
+duckdb --batch trips.duckdb < sql/01_load.sql
+```
