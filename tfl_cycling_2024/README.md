@@ -157,3 +157,45 @@ The [complete query](sql/01_load.sql) can be found on the [sql directory](sql), 
 ```bash
 duckdb --batch trips.duckdb < sql/01_load.sql
 ```
+
+### Utility Attributes
+
+To facilitate future analysis a few new atttributes will be created.
+
+#### Route ID
+
+To create a `route_id` we concatenate the 0-padded versions of the station IDs. After checking the maximun value of a station ID, 9 characters are enough to pad every value.
+
+```sql
+ALTER TABLE trips_raw
+ADD COLUMN route_id VARCHAR;
+
+UPDATE trips_raw
+SET route_id = format('{:09d}{:09d}', station_start_id, station_end_id);
+```
+
+Using this scheme also ensures that the route from A to B is different from the route from B to A.
+
+#### Trip duration in minutes
+
+A quick check of the `duration_ms` attribute reveals that 75% of the values fall bellow 21 minutes.
+
+```sql
+SUMMARIZE -- DuckDb utility function
+SELECT duration_ms/(1000 * 60)
+FROM trips_raw;
+
+-- Q25:  7.64 minutes
+-- Q50: 13.05 minutes
+-- Q75: 20.92 minutes
+```
+
+With this reference values I decided to add a calculated duration_minutes attribute to each record to facilitate filtering.
+
+```sql
+ALTER TABLE trips_raw
+ADD COLUMN duration_minutes DOUBLE;
+
+UPDATE trips_raw
+SET duration_minutes = duration_ms/(1000 * 60);
+```
