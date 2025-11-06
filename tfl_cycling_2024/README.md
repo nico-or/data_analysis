@@ -199,3 +199,55 @@ ADD COLUMN duration_minutes DOUBLE;
 UPDATE trips_raw
 SET duration_minutes = duration_ms/(1000 * 60);
 ```
+
+## Exploratory Data Analysis
+
+Here a general overview of the main attributes will be presented.
+
+### Travel times
+
+Travel duration times range from a few seconds to many days. With most them falling under around 120 minutes.
+
+![Trip duration histogram: complete dataset](plots/1_duration_hist_total.png)
+
+![Trip duration histogram: less than 2 hours](plots/1_duration_hist_120_min.png)
+
+#### Trips under 1 minute
+
+There is an abundance of trips under 1 minute.
+
+![Trip duration histogram: less than 5 minutes](plots/1_duration_hist_5_min_raw.png)
+
+Quering the amount of trips under a minute and the ones having different start and end station IDs one can see that most of this trips are people changing their mind about using the bike.
+
+```sql
+SELECT count(*)
+FROM trips
+WHERE duration_minutes < 1;
+-- 69265 rows
+
+SELECT count(*)
+FROM trips
+WHERE duration_minutes < 1
+AND station_start_id != station_end_id;
+-- 2148 rows
+```
+
+Removing the trips where `station_start_id == station_end_id` we get a more natural distrubution
+
+![Trip duration histogram: less than 5 minutes clean](plots/1_duration_hist_5_min_clean.png)
+
+Without more information about the station location it's impossible to discard that the remaining 2 thousand trips. It might be possible to get between 2 stations in less than a minute or, less likely, it could be a software issue that assignings different IDs to the same station.
+
+Going forward I will only focus on trips with durations:
+
+- less or equal to 60 minutes
+- different start and end locations if `duration_minutes` is less than 1 minute.
+
+```sql
+DELETE FROM trips
+WHERE
+duration_minutes > 60
+OR
+(duration_minutes < 1 AND station_start_id == station_end_id);
+```
