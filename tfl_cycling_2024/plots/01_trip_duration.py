@@ -32,7 +32,6 @@ sns.histplot(
     data[data['duration_minutes'] < TIME_LIMIT],
     x='duration_minutes',
     stat='count',
-    binwidth=2,
 )
 plt.savefig('plots/1_duration_hist_120_min.png')
 
@@ -44,7 +43,6 @@ sns.histplot(
     data[data['duration_minutes'] < TIME_LIMIT],
     x='duration_minutes',
     stat='count',
-    binwidth=0.2,
 )
 plt.savefig('plots/1_duration_hist_5_min_raw.png')
 
@@ -59,7 +57,6 @@ sns.histplot(
     ],
     x='duration_minutes',
     stat='count',
-    binwidth=0.2,
 )
 plt.savefig('plots/1_duration_hist_5_min_clean.png')
 
@@ -69,7 +66,6 @@ sns.histplot(
     data[data['round_trip'] == True],
     x='duration_minutes',
     stat='count',
-    binwidth=0.1,
     log_scale=True
 )
 plt.savefig('plots/1_duration_hist_round_trip.png')
