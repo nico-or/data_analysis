@@ -8,8 +8,7 @@ conn = duckdb.connect('trips.duckdb',config={
 
 query = """
 SELECT
-    station_start_id,
-    station_end_id,
+    (station_start_id == station_end_id) AS round_trip,
     (duration_ms/(1000*60)) AS duration_minutes
 FROM trips_raw;
 """
@@ -56,10 +55,42 @@ plt.figure()
 sns.histplot(
     data[
         (data['duration_minutes'] <= TIME_LIMIT) &
-        (data['station_start_id'] != data['station_end_id'])
+        (data['round_trip'] == False)
     ],
     x='duration_minutes',
     stat='count',
     binwidth=0.2,
 )
 plt.savefig('plots/1_duration_hist_5_min_clean.png')
+
+# Trip duration histogram same start end
+plt.figure()
+sns.histplot(
+    data[data['round_trip'] == True],
+    x='duration_minutes',
+    stat='count',
+    binwidth=0.1,
+    log_scale=True
+)
+plt.savefig('plots/1_duration_hist_round_trip.png')
+
+# Trip duration histogram
+plt.figure()
+sns.histplot(
+    data,
+    x='duration_minutes',
+    hue='round_trip',
+    stat='count',
+    log_scale=True
+)
+plt.savefig('plots/1_duration_hist_round_trip_both.png')
+
+# Trip duration histogram
+plt.figure()
+sns.histplot(
+    data[data['round_trip'] == True],
+    x='duration_minutes',
+    stat='count',
+    log_scale=True
+)
+plt.savefig('plots/1_duration_hist_round_trip_clean.png')
