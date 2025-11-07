@@ -200,6 +200,19 @@ UPDATE trips_raw
 SET duration_minutes = duration_ms/(1000 * 60);
 ```
 
+### Round trip flag
+
+A boolean column is added to quickly filter trips that start and end in the same location.
+
+```sql
+-- Add round trip flag
+ALTER TABLE trips
+ADD COLUMN round_trip BOOL DEFAULT false;
+
+UPDATE trips
+SET round_trip = (station_start_id == station_end_id);
+```
+
 ## Exploratory Data Analysis
 
 Here a general overview of the main attributes will be presented.

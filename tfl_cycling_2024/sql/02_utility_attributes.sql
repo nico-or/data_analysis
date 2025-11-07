@@ -15,7 +15,7 @@ ADD COLUMN duration_minutes DOUBLE;
 UPDATE trips
 SET duration_minutes = duration_ms/(1000 * 60);
 
--- Add routrip flag
+-- Add round trip flag
 ALTER TABLE trips
 ADD COLUMN round_trip BOOL DEFAULT false;
 
